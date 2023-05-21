@@ -20,35 +20,19 @@ interface UniversalFormProps {
   onFieldsChange: ({ values, isReady }: OnFieldsChangeParams) => void;
 }
 
-//field validation settings
-const createSchema = (field: FieldConfig): z.ZodSchema<string> => {
+const createFieldValidation = (field: FieldConfig): z.ZodSchema<string> => {
+  let schema = z.string().max(100);
+  if (field.required) schema = schema.nonempty({ message: "Required" });
+
   switch (field.type) {
-    case "inputText":
-      return field.required
-        ? z.string().max(100).nonempty({ message: "Empty field" })
-        : z.string().max(100);
     case "inputEmail":
-      return field.required
-        ? z
-            .string()
-            .max(100)
-            .email({ message: "Invalid email" })
-            .nonempty({ message: "Empty field" })
-        : z.string().max(100).email({ message: "Invalid email" });
+      schema = schema.email({ message: "Invalid email" });
+      break;
     case "inputPassword":
-      return field.required
-        ? z
-            .string()
-            .max(100)
-            .min(8, { message: "Must be at least 8 characters" })
-            .nonempty({ message: "Empty field" })
-        : z
-            .string()
-            .max(100)
-            .min(8, { message: "Must be at least 8 characters" });
-    default:
-      throw new Error("Invalid field type");
+      schema = schema.min(8, { message: "Must be at least 8 characters" });
+      break;
   }
+  return schema;
 };
 
 //main form component
@@ -57,34 +41,26 @@ const UniversalForm: React.FC<UniversalFormProps> = ({
   onFieldsChange,
 }) => {
   const defaultValues = useMemo(() => {
-    return fields.reduce<{ [key: string]: string }>((prev, field) => {
-      if (field.defaultValue) {
-        prev[field.id] = field.defaultValue;
-      }
-      return prev;
+    return fields.reduce<Record<string, string>>((acc, field) => {
+      if (field.defaultValue) acc[field.id] = field.defaultValue;
+      return acc;
     }, {});
   }, [fields]);
 
-  const [values, setValues] = useState<{ [key: string]: string }>(
-    defaultValues
-  );
-  const [errors, setErrors] = useState<{ [key: string]: string }>({});
-
-  useEffect(() => {
-    const isReady = fields
-      .filter((field) => field.required)
-      .every(
-        (field) =>
-          values[field.id] !== undefined &&
-          values[field.id] !== "" &&
-          !errors[field.id]
-      );
-
-    onFieldsChange({ values: values, isReady: isReady });
-  }, [values, fields, onFieldsChange, errors]);
-
+  const [values, setValues] = useState<Record<string, string>>(defaultValues);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [editingField, setEditingField] = useState<string | null>(null);
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
+
+  useEffect(() => {
+    const isReady = fields.every((field) => {
+      const fieldValue = values[field.id] || "";
+      const error = errors[field.id];
+      return !field.required || (fieldValue !== "" && !error);
+    });
+
+    onFieldsChange({ values, isReady });
+  }, [values, fields, onFieldsChange, errors]);
 
   const handleChange = (id: string, field: FieldConfig, value: string) => {
     setEditingField(id); //don't throw error while user is typing
@@ -96,33 +72,25 @@ const UniversalForm: React.FC<UniversalFormProps> = ({
       }, 500)
     );
 
-    const schema = createSchema(field);
+    const schema = createFieldValidation(field);
     try {
       schema.parse(value);
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        [id]: "",
-      }));
+      setErrors((prev) => ({ ...prev, [id]: "" }));
     } catch (err) {
-      const validationError = err as ZodError;
-      setErrors((prevErrors) => ({
-        ...prevErrors,
-        [id]: validationError.errors[0].message,
-      }));
+      const error = err as ZodError;
+      setErrors((prev) => ({ ...prev, [id]: error.errors[0].message }));
     }
-    setValues((prevValues) => ({
-      ...prevValues,
-      [id]: value,
-    }));
+
+    setValues((prev) => ({ ...prev, [id]: value }));
   };
 
   return (
-    <form className={styles.universalInput}>
+    <form className={styles.universalForm}>
       {fields.map((field) => (
-        <Field
+        <InputField
           key={field.id}
           {...field}
-          value={values[field.id]}
+          value={values[field.id] || ""}
           error={editingField !== field.id ? errors[field.id] : undefined}
           onChange={(value) => handleChange(field.id, field, value)}
         />
@@ -132,30 +100,33 @@ const UniversalForm: React.FC<UniversalFormProps> = ({
 };
 
 //auxiliary form component for simplicity and optimisation
-const Field: React.FC<
+const InputField: React.FC<
   FieldConfig & {
     value: string;
     onChange: (value: string) => void;
     error?: string;
   }
 > = React.memo(({ id, label, type, required, value, onChange, error }) => {
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      onChange(e.target.value);
+  const handleInputChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      onChange(event.target.value);
     },
     [onChange]
   );
 
   return (
     <div className={styles.inputElement}>
-      <label htmlFor={id}>{label + (required ? "*" : "")}</label>
+      <label htmlFor={id}>
+        {label}
+        {required && "*"}
+      </label>
       <input
         type={type.replace("input", "")}
         id={id}
-        value={value || ""}
+        value={value}
         required={required}
-        onChange={handleChange}
-        placeholder={"Enter value"}
+        onChange={handleInputChange}
+        placeholder="Enter value"
       />
       {error && <div className={styles.errorMessage}>{error}</div>}
     </div>
