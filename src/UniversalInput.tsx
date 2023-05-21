@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { ZodError, z } from "zod";
+import styles from "./UniversalInput.module.scss";
 
 export interface FieldConfig {
   id: string;
@@ -70,7 +71,19 @@ const UniversalForm: React.FC<UniversalFormProps> = ({
     onFieldsChange(values, allRequiredFieldsFilled);
   }, [values, fields, onFieldsChange, errors]);
 
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [timeoutId, setTimeoutId] = useState<number | null>(null);
+
   const handleChange = (id: string, field: FieldConfig, value: string) => {
+    setEditingField(id);
+    if (timeoutId) clearTimeout(timeoutId);
+
+    setTimeoutId(
+      window.setTimeout(() => {
+        setEditingField(null);
+      }, 700)
+    );
+
     const schema = createSchema(field);
     try {
       schema.parse(value);
@@ -92,13 +105,13 @@ const UniversalForm: React.FC<UniversalFormProps> = ({
   };
 
   return (
-    <form>
+    <form className={styles.universalInput}>
       {fields.map((field) => (
         <Field
           key={field.id}
           {...field}
           value={values[field.id]}
-          error={errors[field.id]}
+          error={editingField !== field.id ? errors[field.id] : undefined}
           onChange={(value) => handleChange(field.id, field, value)}
         />
       ))}
@@ -121,7 +134,7 @@ const Field: React.FC<
   );
 
   return (
-    <div>
+    <div className={styles.inputElement}>
       <label htmlFor={id}>{label + (required ? "*" : "")}</label>
       <input
         type={type.replace("input", "")}
@@ -129,8 +142,9 @@ const Field: React.FC<
         value={value || ""}
         required={required}
         onChange={handleChange}
+        placeholder={"Enter value"}
       />
-      {error && <div style={{ color: "red" }}>{error}</div>}
+      {error && <div className={styles.errorMessage}>{error}</div>}
     </div>
   );
 });

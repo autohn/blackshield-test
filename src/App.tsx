@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import UniversalForm, { FieldConfig } from "./UniversalInput";
+import styles from "./App.module.scss";
 
 const App: React.FC = () => {
   const fields: FieldConfig[] = [
@@ -8,17 +9,13 @@ const App: React.FC = () => {
       type: "inputText",
       label: "First Name",
       defaultValue: "Some first name",
+      required: true,
     },
+
     {
       id: "last_name",
       type: "inputText",
       label: "Last Name",
-    },
-    {
-      id: "last_name2",
-      type: "inputText",
-      label: "Last Name",
-      required: true,
     },
     {
       id: "email",
@@ -27,20 +24,10 @@ const App: React.FC = () => {
       required: true,
     },
     {
-      id: "email2",
-      type: "inputEmail",
-      label: "Email",
-    },
-    {
       id: "password",
       type: "inputPassword",
       label: "Password",
       required: true,
-    },
-    {
-      id: "password2",
-      type: "inputPassword",
-      label: "Password",
     },
   ];
 
@@ -57,14 +44,24 @@ const App: React.FC = () => {
 
   const handleSubmit = () => {
     console.log(formValues);
+    alert(JSON.stringify(formValues));
   };
 
   return (
-    <div className="App">
-      <UniversalForm fields={fields} onFieldsChange={handleFieldsChange} />
-      <button onClick={handleSubmit} disabled={!isReadyForSubmit}>
-        Submit
-      </button>
+    <div className={"App " + styles.app}>
+      <div className={styles.centeredOuterForm}>
+        {/*         <div className={styles.logo}>💁🏻‍♀️</div> */}
+        <img
+          src="woman-tipping-hand.png"
+          alt="woman-tipping-hand"
+          width="100"
+          height="100"
+        ></img>
+        <UniversalForm fields={fields} onFieldsChange={handleFieldsChange} />
+        <button onClick={handleSubmit} disabled={!isReadyForSubmit}>
+          Submit
+        </button>
+      </div>
     </div>
   );
 };

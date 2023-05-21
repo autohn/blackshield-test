@@ -1,0 +1,46 @@
+.app {
+  flex-direction: column;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-family: "Inter";
+  font-style: normal;
+
+  .logo {
+    font-weight: 400;
+    font-size: 100px;
+    line-height: 121px;
+    text-align: center;
+  }
+  .centeredOuterForm {
+    width: 420px;
+    flex-direction: column;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  button {
+    width: 184px;
+    height: 43px;
+    margin-top: 20px;
+
+    border-radius: 6px;
+
+    font-weight: 500;
+    font-size: 16px;
+    line-height: 19px;
+    text-align: center;
+
+    color: #ffffff;
+
+    background: #007af4;
+
+    border: none;
+
+    &[disabled] {
+      background: rgba(0, 122, 244, 0.5);
+      cursor: not-allowed;
+    }
+  }
+}
