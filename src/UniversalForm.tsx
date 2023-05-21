@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { ZodError, z } from "zod";
-import styles from "./UniversalInput.module.scss";
+import styles from "./UniversalForm.module.scss";
 
 export interface FieldConfig {
   id: string;
@@ -10,36 +10,48 @@ export interface FieldConfig {
   required?: boolean;
 }
 
-interface UniversalFormProps {
-  fields: FieldConfig[];
-  onFieldsChange: (values: Record<string, string>, isReady: boolean) => void;
+export interface OnFieldsChangeParams {
+  values: Record<string, string>;
+  isReady: boolean;
 }
 
+interface UniversalFormProps {
+  fields: FieldConfig[];
+  onFieldsChange: ({ values, isReady }: OnFieldsChangeParams) => void;
+}
+
+//field validation settings
 const createSchema = (field: FieldConfig): z.ZodSchema<string> => {
   switch (field.type) {
     case "inputText":
       return field.required
-        ? z.string().nonempty({ message: "Empty field" })
-        : z.string();
+        ? z.string().max(100).nonempty({ message: "Empty field" })
+        : z.string().max(100);
     case "inputEmail":
       return field.required
         ? z
             .string()
+            .max(100)
             .email({ message: "Invalid email" })
             .nonempty({ message: "Empty field" })
-        : z.string().email({ message: "Invalid email" });
+        : z.string().max(100).email({ message: "Invalid email" });
     case "inputPassword":
       return field.required
         ? z
             .string()
+            .max(100)
             .min(8, { message: "Must be at least 8 characters" })
             .nonempty({ message: "Empty field" })
-        : z.string().min(8, { message: "Must be at least 8 characters" });
+        : z
+            .string()
+            .max(100)
+            .min(8, { message: "Must be at least 8 characters" });
     default:
       throw new Error("Invalid field type");
   }
 };
 
+//main form component
 const UniversalForm: React.FC<UniversalFormProps> = ({
   fields,
   onFieldsChange,
@@ -59,7 +71,7 @@ const UniversalForm: React.FC<UniversalFormProps> = ({
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
   useEffect(() => {
-    const allRequiredFieldsFilled = fields
+    const isReady = fields
       .filter((field) => field.required)
       .every(
         (field) =>
@@ -68,20 +80,20 @@ const UniversalForm: React.FC<UniversalFormProps> = ({
           !errors[field.id]
       );
 
-    onFieldsChange(values, allRequiredFieldsFilled);
+    onFieldsChange({ values: values, isReady: isReady });
   }, [values, fields, onFieldsChange, errors]);
 
   const [editingField, setEditingField] = useState<string | null>(null);
   const [timeoutId, setTimeoutId] = useState<number | null>(null);
 
   const handleChange = (id: string, field: FieldConfig, value: string) => {
-    setEditingField(id);
+    setEditingField(id); //don't throw error while user is typing
     if (timeoutId) clearTimeout(timeoutId);
 
     setTimeoutId(
       window.setTimeout(() => {
         setEditingField(null);
-      }, 700)
+      }, 500)
     );
 
     const schema = createSchema(field);
@@ -119,6 +131,7 @@ const UniversalForm: React.FC<UniversalFormProps> = ({
   );
 };
 
+//auxiliary form component for simplicity and optimisation
 const Field: React.FC<
   FieldConfig & {
     value: string;

@@ -1,5 +1,8 @@
 import React, { useState } from "react";
-import UniversalForm, { FieldConfig } from "./UniversalInput";
+import UniversalForm, {
+  FieldConfig,
+  OnFieldsChangeParams,
+} from "./UniversalForm";
 import styles from "./App.module.scss";
 
 const App: React.FC = () => {
@@ -34,10 +37,7 @@ const App: React.FC = () => {
   const [formValues, setFormValues] = useState<Record<string, string>>({});
   const [isReadyForSubmit, setIsReadyForSubmit] = useState(false);
 
-  const handleFieldsChange = (
-    values: Record<string, string>,
-    isReady: boolean
-  ) => {
+  const handleFieldsChange = ({ values, isReady }: OnFieldsChangeParams) => {
     setFormValues(values);
     setIsReadyForSubmit(isReady);
   };
