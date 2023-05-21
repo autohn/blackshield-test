@@ -1,6 +1,7 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
+import { ZodError, z } from "zod";
 
-export interface Field {
+export interface FieldConfig {
   id: string;
   type: "inputText" | "inputEmail" | "inputPassword";
   label: string;
@@ -8,48 +9,130 @@ export interface Field {
   required?: boolean;
 }
 
-interface FormProps {
-  fields: Field[];
-  onFieldsChange: (values: { [key: string]: string }) => void;
+interface UniversalFormProps {
+  fields: FieldConfig[];
+  onFieldsChange: (values: Record<string, string>, isReady: boolean) => void;
 }
 
-const Form: React.FC<FormProps> = ({ fields, onFieldsChange }) => {
-  const [values, setValues] = useState<{ [key: string]: string }>(
-    fields.reduce<{ [key: string]: string }>((prev, field) => {
+const createSchema = (field: FieldConfig): z.ZodSchema<string> => {
+  switch (field.type) {
+    case "inputText":
+      return field.required
+        ? z.string().nonempty({ message: "Empty field" })
+        : z.string();
+    case "inputEmail":
+      return field.required
+        ? z
+            .string()
+            .email({ message: "Invalid email" })
+            .nonempty({ message: "Empty field" })
+        : z.string().email({ message: "Invalid email" });
+    case "inputPassword":
+      return field.required
+        ? z
+            .string()
+            .min(8, { message: "Must be at least 8 characters" })
+            .nonempty({ message: "Empty field" })
+        : z.string().min(8, { message: "Must be at least 8 characters" });
+    default:
+      throw new Error("Invalid field type");
+  }
+};
+
+const UniversalForm: React.FC<UniversalFormProps> = ({
+  fields,
+  onFieldsChange,
+}) => {
+  const defaultValues = useMemo(() => {
+    return fields.reduce<{ [key: string]: string }>((prev, field) => {
       if (field.defaultValue) {
         prev[field.id] = field.defaultValue;
       }
       return prev;
-    }, {})
-  );
+    }, {});
+  }, [fields]);
 
-  const handleChange = (id: string, value: string) => {
-    setValues({
-      ...values,
+  const [values, setValues] = useState<{ [key: string]: string }>(
+    defaultValues
+  );
+  const [errors, setErrors] = useState<{ [key: string]: string }>({});
+
+  useEffect(() => {
+    const allRequiredFieldsFilled = fields
+      .filter((field) => field.required)
+      .every(
+        (field) =>
+          values[field.id] !== undefined &&
+          values[field.id] !== "" &&
+          !errors[field.id]
+      );
+
+    onFieldsChange(values, allRequiredFieldsFilled);
+  }, [values, fields, onFieldsChange, errors]);
+
+  const handleChange = (id: string, field: FieldConfig, value: string) => {
+    const schema = createSchema(field);
+    try {
+      schema.parse(value);
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        [id]: "",
+      }));
+    } catch (err) {
+      const validationError = err as ZodError;
+      setErrors((prevErrors) => ({
+        ...prevErrors,
+        [id]: validationError.errors[0].message,
+      }));
+    }
+    setValues((prevValues) => ({
+      ...prevValues,
       [id]: value,
-    });
-    onFieldsChange({
-      ...values,
-      [id]: value,
-    });
+    }));
   };
 
   return (
     <form>
       {fields.map((field) => (
-        <div key={field.id}>
-          <label htmlFor={field.id}>{field.label}</label>
-          <input
-            type={field.type.replace("input", "")}
-            id={field.id}
-            value={values[field.id] || ""}
-            required={field.required}
-            onChange={(e) => handleChange(field.id, e.target.value)}
-          />
-        </div>
+        <Field
+          key={field.id}
+          {...field}
+          value={values[field.id]}
+          error={errors[field.id]}
+          onChange={(value) => handleChange(field.id, field, value)}
+        />
       ))}
     </form>
   );
 };
 
-export default Form;
+const Field: React.FC<
+  FieldConfig & {
+    value: string;
+    onChange: (value: string) => void;
+    error?: string;
+  }
+> = React.memo(({ id, label, type, required, value, onChange, error }) => {
+  const handleChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      onChange(e.target.value);
+    },
+    [onChange]
+  );
+
+  return (
+    <div>
+      <label htmlFor={id}>{label + (required ? "*" : "")}</label>
+      <input
+        type={type.replace("input", "")}
+        id={id}
+        value={value || ""}
+        required={required}
+        onChange={handleChange}
+      />
+      {error && <div style={{ color: "red" }}>{error}</div>}
+    </div>
+  );
+});
+
+export default UniversalForm;
