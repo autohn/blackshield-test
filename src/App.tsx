@@ -14,7 +14,6 @@ const App: React.FC = () => {
       defaultValue: "Some first name",
       required: true,
     },
-
     {
       id: "last_name",
       type: "inputText",
